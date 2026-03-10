@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PoE2 Timeless Jewel Calculator</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>PoE2 Timeless Jewel Calculator</h1>
+      <p class="subtitle">Calculate the effect of timeless jewels on the passive skill tree</p>
+      <p class="subtitle"><a href="tree.html" style="color:#7ec8e3;text-decoration:none">Open Skill Tree View →</a></p>
+    </header>
+
+    <div id="loading">Loading data...</div>
+
+    <div id="controls" class="hidden">
+      <div class="control-row">
+        <label>
+          Jewel Type
+          <select id="jewel-type"></select>
+        </label>
+        <label>
+          Seed
+          <input type="number" id="jewel-seed" min="1" max="8000" value="1" />
+        </label>
+        <label>
+          Keystone Variant
+          <select id="keystone-variant"></select>
+        </label>
+      </div>
+      <div class="control-row">
+        <label>
+          Jewel Socket
+          <select id="jewel-socket"></select>
+        </label>
+        <label>
+          Search Stats
+          <input type="text" id="stat-search" placeholder="e.g. fire damage, life..." />
+        </label>
+        <button id="calculate-btn">Calculate</button>
+      </div>
+    </div>
+
+    <div id="results" class="hidden">
+      <div id="summary"></div>
+      <div id="node-list"></div>
+    </div>
+
+    <!-- Seed Scanner -->
+    <div id="scanner" class="hidden">
+      <div id="scanner-controls">
+        <h2>Seed Scanner</h2>
+        <p class="scanner-desc">Find the best seed for your desired stats. Select stats below and click Scan.</p>
+
+        <div class="control-row">
+          <label>
+            Desired Stats
+            <input type="text" id="stat-picker-search" placeholder="Type to search stats..." autocomplete="off" />
+          </label>
+        </div>
+
+        <div id="stat-picker-dropdown" class="stat-dropdown hidden"></div>
+
+        <div id="selected-stats" class="selected-stats"></div>
+
+        <div class="control-row">
+          <label>
+            Seed Range
+            <div class="seed-range-inputs">
+              <input type="number" id="scan-seed-min" min="1" max="8000" value="1" />
+              <span>to</span>
+              <input type="number" id="scan-seed-max" min="1" max="8000" value="8000" />
+            </div>
+          </label>
+          <button id="scan-btn">Scan Seeds</button>
+          <button id="scan-abort-btn" class="btn-secondary hidden">Stop</button>
+        </div>
+
+        <div id="scan-progress" class="hidden">
+          <div class="progress-bar">
+            <div class="progress-fill" id="scan-progress-fill"></div>
+          </div>
+          <div id="scan-progress-text" class="progress-text"></div>
+        </div>
+      </div>
+
+      <div id="scan-results" class="hidden">
+        <div id="scan-summary"></div>
+        <table class="seed-table" id="scan-table">
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>Seed</th>
+              <th>Matching Nodes</th>
+              <th>Total Value</th>
+              <th>Stat Breakdown</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="scan-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script src="engine.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

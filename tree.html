@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PoE2 Timeless Jewel — Skill Tree</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0d0d1a;
+      color: #e0e0e0;
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+    }
+    #loading {
+      position: fixed; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.2rem; color: #c8a86e;
+      background: #0d0d1a; z-index: 100;
+    }
+    #loading.hidden { display: none; }
+
+    canvas { display: block; cursor: grab; }
+    canvas.grabbing { cursor: grabbing; }
+
+    /* Top bar */
+    #topbar {
+      position: fixed; top: 0; left: 0; right: 0;
+      background: rgba(22, 33, 62, 0.95);
+      border-bottom: 1px solid #333;
+      padding: 8px 16px;
+      display: flex; align-items: center; gap: 16px;
+      z-index: 50;
+      flex-wrap: wrap;
+    }
+    #topbar h1 {
+      color: #c8a86e; font-size: 1rem; white-space: nowrap;
+    }
+    #topbar a {
+      color: #7ec8e3; text-decoration: none; font-size: 0.85rem;
+    }
+    #topbar a:hover { text-decoration: underline; }
+    #topbar .spacer { flex: 1; }
+    #topbar label {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 0.82rem; color: #aaa;
+    }
+    #topbar select, #topbar input[type="number"] {
+      background: #0f3460; border: 1px solid #444; color: #e0e0e0;
+      padding: 4px 8px; border-radius: 4px; font-size: 0.85rem;
+    }
+    #topbar select:focus, #topbar input:focus {
+      outline: none; border-color: #c8a86e;
+    }
+    #topbar button {
+      background: #c8a86e; color: #1a1a2e; border: none;
+      padding: 5px 14px; border-radius: 4px; font-weight: 600;
+      font-size: 0.85rem; cursor: pointer;
+    }
+    #topbar button:hover { background: #dfc088; }
+
+    /* Tooltip */
+    #tooltip {
+      position: fixed;
+      background: rgba(22, 33, 62, 0.96);
+      border: 1px solid #555;
+      border-radius: 6px;
+      padding: 10px 14px;
+      pointer-events: none;
+      z-index: 200;
+      max-width: 360px;
+      display: none;
+      font-size: 0.82rem;
+      line-height: 1.5;
+    }
+    #tooltip .tt-name { font-weight: 600; font-size: 0.9rem; margin-bottom: 4px; }
+    #tooltip .tt-name.keystone { color: #e74c3c; }
+    #tooltip .tt-name.notable { color: #c8a86e; }
+    #tooltip .tt-name.small { color: #aaa; }
+    #tooltip .tt-name.socket { color: #da70d6; }
+    #tooltip .tt-stat { color: #7ec8e3; }
+    #tooltip .tt-stat.added { color: #5dbb63; }
+    #tooltip .tt-original { color: #666; font-size: 0.78rem; margin-top: 4px; }
+    #tooltip .tt-replaced { color: #c8a86e; font-size: 0.78rem; }
+    #tooltip .tt-id { color: #555; font-size: 0.72rem; margin-top: 3px; }
+    #tooltip .tt-flavour { color: #a67c52; font-style: italic; font-size: 0.78rem; margin-top: 3px; }
+
+    /* Side panel for selected socket */
+    #side-panel {
+      position: fixed; top: 52px; right: 0; bottom: 0;
+      width: 380px;
+      background: rgba(22, 33, 62, 0.97);
+      border-left: 1px solid #333;
+      z-index: 40;
+      overflow-y: auto;
+      padding: 16px;
+      display: none;
+    }
+    #side-panel.visible { display: block; }
+    #side-panel h2 {
+      color: #c8a86e; font-size: 1rem; margin-bottom: 12px;
+    }
+    #side-panel .sp-close {
+      position: absolute; top: 10px; right: 14px;
+      background: none; border: none; color: #888; font-size: 1.2rem;
+      cursor: pointer;
+    }
+    #side-panel .sp-close:hover { color: #e0e0e0; }
+    .sp-node {
+      background: #0f1a30;
+      border: 1px solid #333;
+      border-radius: 5px;
+      padding: 8px 12px;
+      margin-bottom: 6px;
+    }
+    .sp-node.keystone { border-left: 3px solid #e74c3c; }
+    .sp-node.notable { border-left: 3px solid #c8a86e; }
+    .sp-node.small { border-left: 3px solid #555; }
+    .sp-node .sp-name { font-weight: 600; font-size: 0.85rem; }
+    .sp-node.keystone .sp-name { color: #e74c3c; }
+    .sp-node.notable .sp-name { color: #c8a86e; }
+    .sp-node.small .sp-name { color: #aaa; }
+    .sp-node .sp-stat { color: #7ec8e3; font-size: 0.8rem; }
+    .sp-node .sp-stat.added { color: #5dbb63; }
+    .sp-node .sp-original { color: #666; font-size: 0.75rem; }
+    .sp-node .sp-replaced { color: #c8a86e; font-size: 0.72rem; }
+    .sp-search {
+      width: 100%;
+      background: #0f3460; border: 1px solid #444; color: #e0e0e0;
+      padding: 6px 10px; border-radius: 4px; font-size: 0.85rem;
+      margin-bottom: 10px;
+    }
+    .sp-search:focus { outline: none; border-color: #c8a86e; }
+    .sp-summary {
+      color: #888; font-size: 0.82rem; margin-bottom: 10px;
+    }
+    .sp-summary .count { color: #c8a86e; font-weight: 600; }
+    .sp-link {
+      display: inline-block; margin-bottom: 12px;
+      color: #7ec8e3; text-decoration: none; font-size: 0.82rem;
+    }
+    .sp-link:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div id="loading">Loading skill tree data...</div>
+
+  <div id="topbar">
+    <h1>Skill Tree</h1>
+    <a href="index.html">← Calculator</a>
+    <div class="spacer"></div>
+    <label>Jewel <select id="jewel-type"></select></label>
+    <label>Seed <input type="number" id="jewel-seed" min="1" max="8000" value="1" style="width:70px"></label>
+    <label>Keystone <select id="keystone-variant"></select></label>
+    <button id="apply-btn">Apply</button>
+    <button id="clear-btn" style="background:#444;color:#ccc">Clear</button>
+  </div>
+
+  <canvas id="tree-canvas"></canvas>
+
+  <div id="tooltip"></div>
+
+  <div id="side-panel">
+    <button class="sp-close">&times;</button>
+    <h2 id="sp-title">Socket</h2>
+    <a class="sp-link" id="sp-calc-link" href="#">Open in Calculator →</a>
+    <input class="sp-search" id="sp-search" placeholder="Filter stats..." />
+    <div class="sp-summary" id="sp-summary"></div>
+    <div id="sp-nodes"></div>
+  </div>
+
+  <script src="engine.js"></script>
+  <script src="tree-renderer.js"></script>
+</body>
+</html>
