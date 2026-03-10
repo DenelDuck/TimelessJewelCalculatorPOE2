@@ -184,9 +184,9 @@ class StatTranslator {
     }
   }
 
-  translate(statId, value) {
+  translate(statId, value, placeholder) {
     const info = this.statMap[statId];
-    if (!info) return `${statId}: ${value}`;
+    if (!info) return `${statId}: ${placeholder != null ? placeholder : value}`;
     // Simple single-stat translation
     let displayValue = value;
     if (info.handlers.includes('negate')) {
@@ -220,18 +220,19 @@ class StatTranslator {
     }
 
     // Replace {N} placeholders
+    const displayStr = placeholder != null ? placeholder : String(displayValue);
     let result = str;
     if (info.ids.length === 1) {
-      result = result.replace(/\{0\}/g, String(displayValue));
+      result = result.replace(/\{0\}/g, displayStr);
     } else {
       result = result.replace(/\{(\d+)\}/g, (_, n) => {
-        if (Number(n) === info.index) return String(displayValue);
+        if (Number(n) === info.index) return displayStr;
         return `{${n}}`;
       });
     }
 
-    // Strip [tag] markup
-    result = result.replace(/\[([^\]]*)\]/g, '$1');
+    // Strip [tag] markup: [ShortId|Display Text] → Display Text, [tag] → tag
+    result = result.replace(/\[([^\]|]*)\|([^\]]*)\]/g, '$2').replace(/\[([^\]]*)\]/g, '$1');
     return result;
   }
 }
@@ -508,9 +509,9 @@ class TimelessJewelEngine {
     return results;
   }
 
-  translateStat(statId, value) {
-    if (!this.translator) return `${statId}: ${value}`;
-    return this.translator.translate(statId, value);
+  translateStat(statId, value, placeholder) {
+    if (!this.translator) return `${statId}: ${placeholder != null ? placeholder : value}`;
+    return this.translator.translate(statId, value, placeholder);
   }
 
   /**
@@ -534,7 +535,7 @@ class TimelessJewelEngine {
 
     return [...statIds].map(id => ({
       id,
-      translated: this.translateStat(id, 1)
+      translated: this.translateStat(id, 1, '#')
     })).sort((a, b) => a.translated.localeCompare(b.translated));
   }
 }
