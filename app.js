@@ -235,6 +235,12 @@
   // Show scanner once data is loaded
   $scanner.classList.remove('hidden');
 
+  // Restore saved proxy URL
+  try {
+    const saved = localStorage.getItem('tradeProxyUrl');
+    if (saved) document.getElementById('trade-proxy-url').value = saved;
+  } catch(e) {}
+
   // All possible stats from timeless jewels
   const allStats = engine.getAllTimelessStats();
   const selectedStatIds = new Set();
@@ -479,7 +485,7 @@
         <td><strong>${row.seed}</strong></td>
         <td>${row.matchCount}</td>
         <td>${row.totalValue}</td>
-        <td>${row.weightedScore.toFixed(1)}</td>
+        <td>${(row.weightedScore ?? row.totalValue ?? 0).toFixed(1)}</td>
         <td class="stat-breakdown">${breakdownHtml}</td>
         <td><button class="use-seed-btn" data-seed="${row.seed}">Use</button></td>
       `;
@@ -517,10 +523,10 @@
     const jewelName = JEWEL_TRADE_NAMES[factionId] || 'Timeless Jewel';
     const league = document.getElementById('trade-league').value;
     const leagueSlug = encodeURIComponent(league);
+    const proxyUrl = (document.getElementById('trade-proxy-url').value || '').trim();
+    const $tradeStatus = document.getElementById('trade-status');
 
-    // Build trade search query — search for the jewel type
-    // Use the jewel name as a type/name filter; don't include
-    // passive-tree stat IDs which don't match trade stat IDs
+    // Build the trade search query for the jewel type
     const query = {
       query: {
         status: { option: 'any' },
@@ -530,29 +536,54 @@
       sort: { price: 'asc' }
     };
 
-    const apiUrl = `https://www.pathofexile.com/api/trade2/search/poe2/${leagueSlug}`;
     const tradeBaseUrl = `https://www.pathofexile.com/trade2/search/poe2/${leagueSlug}`;
 
-    // Try calling the trade API to create a search and redirect to it
-    fetch(apiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(query)
-    })
-      .then(r => {
-        if (!r.ok) throw new Error(`Trade API returned ${r.status}`);
-        return r.json();
+    // Always copy seeds to clipboard as a reference
+    const seedText = seeds.join(', ');
+    navigator.clipboard.writeText(seedText).catch(() => {});
+
+    if (proxyUrl) {
+      // Use the CORS proxy to create a real trade search link
+      $tradeStatus.classList.remove('hidden');
+      $tradeStatus.textContent = 'Creating trade search...';
+      $tradeStatus.className = 'trade-status';
+
+      // Save proxy URL for next time
+      try { localStorage.setItem('tradeProxyUrl', proxyUrl); } catch(e) {}
+
+      const apiUrl = proxyUrl.replace(/\/$/, '') + '/search/' + leagueSlug;
+
+      fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(query)
       })
-      .then(data => {
-        if (data.id) {
-          window.open(`${tradeBaseUrl}/${data.id}`, '_blank');
-        } else {
-          throw new Error('No search ID returned');
-        }
-      })
-      .catch(() => {
-        // Fallback: open the trade page directly
-        window.open(tradeBaseUrl, '_blank');
-      });
+        .then(r => {
+          if (!r.ok) throw new Error(`Proxy returned ${r.status}`);
+          return r.json();
+        })
+        .then(data => {
+          if (data.id) {
+            $tradeStatus.innerHTML = `<a href="${tradeBaseUrl}/${escapeHtml(data.id)}" target="_blank" style="color:#7ec8e3">Trade search opened → ${escapeHtml(data.id)}</a>` +
+              `<br><small style="color:#888">Seeds copied to clipboard: ${escapeHtml(seedText)}</small>`;
+            window.open(`${tradeBaseUrl}/${data.id}`, '_blank');
+          } else {
+            throw new Error(data.error || 'No search ID returned');
+          }
+        })
+        .catch(err => {
+          $tradeStatus.innerHTML = `<span style="color:#e74c3c">Proxy error: ${escapeHtml(err.message)}</span>` +
+            `<br><small style="color:#888">Falling back — opening trade page. Seeds copied to clipboard: ${escapeHtml(seedText)}</small>`;
+          window.open(tradeBaseUrl, '_blank');
+        });
+    } else {
+      // No proxy configured — open trade page and show helpful info
+      $tradeStatus.classList.remove('hidden');
+      $tradeStatus.innerHTML =
+        `<strong>Seeds copied to clipboard:</strong> ${escapeHtml(seedText)}<br>` +
+        `Search for <strong>${escapeHtml(jewelName)}</strong> on the trade site and look for these seeds.<br>` +
+        `<small style="color:#666">Tip: Add a <a href="trade-proxy-worker.js" style="color:#7ec8e3" target="_blank">Cloudflare Worker proxy</a> URL above to auto-create trade search links.</small>`;
+      window.open(tradeBaseUrl, '_blank');
+    }
   }
 })();

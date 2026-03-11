@@ -435,6 +435,25 @@ select:focus, input:focus {
   margin-top: 2px;
 }
 
+.trade-proxy-label {
+  flex: 0 1 auto;
+  min-width: 240px;
+}
+.trade-proxy-label input {
+  font-size: 0.82rem;
+  padding: 5px 8px;
+}
+
+.trade-status {
+  width: 100%;
+  font-size: 0.82rem;
+  color: #aaa;
+  margin-top: 4px;
+  line-height: 1.5;
+}
+.trade-status a { text-decoration: none; }
+.trade-status a:hover { text-decoration: underline; }
+
 /* Row checkboxes */
 .scan-row-check, #scan-select-all {
   width: 16px;

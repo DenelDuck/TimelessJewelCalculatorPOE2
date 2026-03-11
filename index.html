@@ -102,7 +102,12 @@
         <div id="trade-actions" class="trade-actions">
           <button id="trade-selected-btn" disabled>Search Selected on Trade</button>
           <span id="trade-selected-count"></span>
+          <label class="trade-proxy-label">
+            Trade Proxy URL
+            <input type="text" id="trade-proxy-url" placeholder="e.g. https://poe2-trade-proxy.you.workers.dev" title="Optional: Cloudflare Worker proxy URL to bypass CORS. See trade-proxy-worker.js for setup." />
+          </label>
           <div id="trade-selected-seeds" class="trade-selected-seeds hidden"></div>
+          <div id="trade-status" class="trade-status hidden"></div>
         </div>
         <table class="seed-table" id="scan-table">
           <thead>
