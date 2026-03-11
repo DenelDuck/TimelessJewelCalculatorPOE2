@@ -270,6 +270,26 @@ select:focus, input:focus {
 }
 .stat-tag .remove:hover { color: #e74c3c; }
 
+.stat-weight-input {
+  width: 50px;
+  background: #1a1a2e;
+  border: 1px solid #555;
+  color: #c8a86e;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-size: 0.78rem;
+  text-align: center;
+}
+.stat-weight-input:focus {
+  outline: none;
+  border-color: #c8a86e;
+}
+
+.stat-weight-label {
+  color: #888;
+  font-size: 0.7rem;
+}
+
 .seed-range-inputs {
   display: flex;
   align-items: center;
@@ -375,3 +395,50 @@ select:focus, input:focus {
 #scan-table .use-seed-btn:hover { background: #dfc088; }
 .stat-breakdown { font-size: 0.78rem; color: #7ec8e3; }
 .stat-breakdown span { display: inline-block; margin-right: 8px; }
+
+/* Trade actions */
+.trade-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  background: #16213e;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 10px 16px;
+}
+
+#trade-selected-btn {
+  background: #3a7bd5;
+  color: #fff;
+  border: none;
+  padding: 6px 18px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+#trade-selected-btn:hover { background: #4a8be5; }
+#trade-selected-btn:disabled { background: #333; color: #666; cursor: not-allowed; }
+
+#trade-selected-count {
+  color: #c8a86e;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.trade-selected-seeds {
+  width: 100%;
+  color: #888;
+  font-size: 0.78rem;
+  margin-top: 2px;
+}
+
+/* Row checkboxes */
+.scan-row-check, #scan-select-all {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: #c8a86e;
+}

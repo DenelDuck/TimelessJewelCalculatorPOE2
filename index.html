@@ -75,6 +75,16 @@
               <input type="number" id="scan-seed-max" min="1" max="8000" value="8000" />
             </div>
           </label>
+          <label>
+            League
+            <select id="trade-league">
+              <option value="Fate of the Vaal">Fate of the Vaal</option>
+              <option value="Standard">Standard</option>
+              <option value="Hardcore">Hardcore</option>
+              <option value="SSF Standard">SSF Standard</option>
+              <option value="SSF Hardcore">SSF Hardcore</option>
+            </select>
+          </label>
           <button id="scan-btn">Scan Seeds</button>
           <button id="scan-abort-btn" class="btn-secondary hidden">Stop</button>
         </div>
@@ -89,13 +99,20 @@
 
       <div id="scan-results" class="hidden">
         <div id="scan-summary"></div>
+        <div id="trade-actions" class="trade-actions">
+          <button id="trade-selected-btn" disabled>Search Selected on Trade</button>
+          <span id="trade-selected-count"></span>
+          <div id="trade-selected-seeds" class="trade-selected-seeds hidden"></div>
+        </div>
         <table class="seed-table" id="scan-table">
           <thead>
             <tr>
+              <th><input type="checkbox" id="scan-select-all" title="Select all" /></th>
               <th>Rank</th>
               <th>Seed</th>
               <th>Matching Nodes</th>
               <th>Total Value</th>
+              <th>Weighted Score</th>
               <th>Stat Breakdown</th>
               <th></th>
             </tr>

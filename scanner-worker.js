@@ -48,7 +48,7 @@ self.onmessage = async function (e) {
 
   if (msg.type === 'scan') {
     aborted = false;
-    const { socketId, versionIndex, keystoneId, revision, searchStatIds, seedMin, seedMax } = msg;
+    const { socketId, versionIndex, keystoneId, revision, searchStatIds, weights, seedMin, seedMax } = msg;
     const nodesInRadius = engine.getNodesInRadius(socketId);
     const total = seedMax - seedMin + 1;
     const rankings = [];
@@ -63,6 +63,7 @@ self.onmessage = async function (e) {
 
       let matchCount = 0;
       let totalValue = 0;
+      let weightedScore = 0;
       const matchingStats = {};
 
       for (const { nodeId, skill } of nodesInRadius) {
@@ -74,13 +75,15 @@ self.onmessage = async function (e) {
           if (val != null && val !== 0) {
             matchCount++;
             totalValue += Math.abs(val);
+            const w = (weights && weights[statId] != null) ? weights[statId] : 1;
+            weightedScore += Math.abs(val) * w;
             matchingStats[statId] = (matchingStats[statId] || 0) + val;
           }
         }
       }
 
       if (matchCount > 0) {
-        rankings.push({ seed, matchCount, totalValue, matchingStats });
+        rankings.push({ seed, matchCount, totalValue, weightedScore, matchingStats });
       }
 
       // Send progress updates periodically
@@ -89,8 +92,8 @@ self.onmessage = async function (e) {
       }
     }
 
-    // Sort by match count descending, then total value descending
-    rankings.sort((a, b) => b.matchCount - a.matchCount || b.totalValue - a.totalValue);
+    // Sort by weighted score descending, then match count descending
+    rankings.sort((a, b) => b.weightedScore - a.weightedScore || b.matchCount - a.matchCount);
 
     // Send top 100
     self.postMessage({

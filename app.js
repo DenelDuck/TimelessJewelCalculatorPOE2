@@ -238,6 +238,7 @@
   // All possible stats from timeless jewels
   const allStats = engine.getAllTimelessStats();
   const selectedStatIds = new Set();
+  const statWeights = {};  // statId -> weight number
   let worker = null;
 
   // ─── Stat picker autocomplete ───
@@ -289,11 +290,13 @@
   function addStat(statId) {
     if (selectedStatIds.has(statId)) return;
     selectedStatIds.add(statId);
+    if (!(statId in statWeights)) statWeights[statId] = 1;
     renderSelectedStats();
   }
 
   function removeStat(statId) {
     selectedStatIds.delete(statId);
+    delete statWeights[statId];
     renderSelectedStats();
   }
 
@@ -303,7 +306,14 @@
       const info = allStats.find(s => s.id === id);
       const tag = document.createElement('span');
       tag.className = 'stat-tag';
-      tag.innerHTML = `${escapeHtml(info?.translated || id)} <span class="remove" data-id="${escapeHtml(id)}">&times;</span>`;
+      tag.innerHTML = `
+        ${escapeHtml(info?.translated || id)}
+        <input type="number" class="stat-weight-input" value="${statWeights[id] ?? 1}" step="0.1" min="0" data-id="${escapeHtml(id)}" title="Weight for this stat" />
+        <span class="remove" data-id="${escapeHtml(id)}">&times;</span>
+      `;
+      tag.querySelector('.stat-weight-input').addEventListener('change', (e) => {
+        statWeights[id] = parseFloat(e.target.value) || 0;
+      });
       tag.querySelector('.remove').addEventListener('click', () => removeStat(id));
       $selectedStats.appendChild(tag);
     }
@@ -356,13 +366,20 @@
       const socketId = Number($jewelSocket.value);
       const ksData = JSON.parse($keystoneVariant.value || '{}');
 
+      const searchStatIds = [...selectedStatIds];
+      const weights = {};
+      for (const id of searchStatIds) {
+        weights[id] = statWeights[id] ?? 1;
+      }
+
       worker.postMessage({
         type: 'scan',
         socketId,
         versionIndex,
         keystoneId: ksData.keystone || 1,
         revision: ksData.revision || 0,
-        searchStatIds: [...selectedStatIds],
+        searchStatIds,
+        weights,
         seedMin: Number($scanSeedMin.value) || 1,
         seedMax: Number($scanSeedMax.value) || 8000
       });
@@ -404,7 +421,44 @@
     $scanResults.classList.remove('hidden');
     $scanSummary.innerHTML =
       `<span class="count">${msg.seedsWithMatches.toLocaleString()}</span> seeds have matching stats out of ` +
-      `<span class="count">${msg.totalSeeds.toLocaleString()}</span> scanned. Showing top ${msg.rankings.length}.`;
+      `<span class="count">${msg.totalSeeds.toLocaleString()}</span> scanned. Showing top ${msg.rankings.length}. ` +
+      `<em style="color:#888;font-size:0.82rem">Ranked by weighted score.</em>`;
+
+    // Track selected seeds
+    const selectedSeeds = new Set();
+    const $tradeBtn = document.getElementById('trade-selected-btn');
+    const $tradeCount = document.getElementById('trade-selected-count');
+    const $tradeSeedsDiv = document.getElementById('trade-selected-seeds');
+    const $selectAll = document.getElementById('scan-select-all');
+    $selectAll.checked = false;
+
+    function updateTradeButton() {
+      $tradeBtn.disabled = selectedSeeds.size === 0;
+      if (selectedSeeds.size > 0) {
+        $tradeCount.textContent = `${selectedSeeds.size} seed${selectedSeeds.size > 1 ? 's' : ''} selected`;
+        $tradeSeedsDiv.classList.remove('hidden');
+        $tradeSeedsDiv.textContent = 'Seeds: ' + [...selectedSeeds].join(', ');
+      } else {
+        $tradeCount.textContent = '';
+        $tradeSeedsDiv.classList.add('hidden');
+      }
+    }
+
+    $selectAll.onchange = () => {
+      const checked = $selectAll.checked;
+      document.querySelectorAll('.scan-row-check').forEach(cb => {
+        cb.checked = checked;
+        const seed = Number(cb.dataset.seed);
+        if (checked) selectedSeeds.add(seed);
+        else selectedSeeds.delete(seed);
+      });
+      updateTradeButton();
+    };
+
+    $tradeBtn.onclick = () => {
+      if (selectedSeeds.size === 0) return;
+      openTradeSearch([...selectedSeeds]);
+    };
 
     $scanTableBody.innerHTML = '';
     msg.rankings.forEach((row, i) => {
@@ -414,17 +468,26 @@
       let breakdownHtml = '';
       for (const [sid, val] of Object.entries(row.matchingStats)) {
         const text = engine.translateStat(sid, val);
-        breakdownHtml += `<span>${escapeHtml(text)}</span> `;
+        const w = statWeights[sid] ?? 1;
+        const wLabel = w !== 1 ? ` <span class="stat-weight-label">(w:${w})</span>` : '';
+        breakdownHtml += `<span>${escapeHtml(text)}${wLabel}</span> `;
       }
 
       tr.innerHTML = `
+        <td><input type="checkbox" class="scan-row-check" data-seed="${row.seed}" /></td>
         <td>${i + 1}</td>
         <td><strong>${row.seed}</strong></td>
         <td>${row.matchCount}</td>
         <td>${row.totalValue}</td>
+        <td>${row.weightedScore.toFixed(1)}</td>
         <td class="stat-breakdown">${breakdownHtml}</td>
         <td><button class="use-seed-btn" data-seed="${row.seed}">Use</button></td>
       `;
+      tr.querySelector('.scan-row-check').addEventListener('change', (e) => {
+        if (e.target.checked) selectedSeeds.add(row.seed);
+        else selectedSeeds.delete(row.seed);
+        updateTradeButton();
+      });
       tr.querySelector('.use-seed-btn').addEventListener('click', () => {
         $jewelSeed.value = row.seed;
         doCalculate();
@@ -432,5 +495,64 @@
       });
       $scanTableBody.appendChild(tr);
     });
+  }
+
+  // ─── Trade search ───
+
+  // Map faction ID to actual in-game jewel item name for trade search
+  const JEWEL_TRADE_NAMES = {
+    'Vaal': 'Glorious Vanity',
+    'Karui': 'Lethal Pride',
+    'Maraketh': 'Brutal Restraint',
+    'Templar': 'Elegant Hubris',
+    'Eternal': 'Militant Faith',
+    'Kalguuran': 'Timeless Jewel',
+    'Abyss': 'Timeless Jewel'
+  };
+
+  function openTradeSearch(seeds) {
+    const versionIndex = Number($jewelType.value);
+    const jewelTypes = engine.getJewelTypes();
+    const factionId = jewelTypes[versionIndex]?.id || '';
+    const jewelName = JEWEL_TRADE_NAMES[factionId] || 'Timeless Jewel';
+    const league = document.getElementById('trade-league').value;
+    const leagueSlug = encodeURIComponent(league);
+
+    // Build trade search query — search for the jewel type
+    // Use the jewel name as a type/name filter; don't include
+    // passive-tree stat IDs which don't match trade stat IDs
+    const query = {
+      query: {
+        status: { option: 'any' },
+        type: jewelName,
+        stats: [{ type: 'and', filters: [] }]
+      },
+      sort: { price: 'asc' }
+    };
+
+    const apiUrl = `https://www.pathofexile.com/api/trade2/search/poe2/${leagueSlug}`;
+    const tradeBaseUrl = `https://www.pathofexile.com/trade2/search/poe2/${leagueSlug}`;
+
+    // Try calling the trade API to create a search and redirect to it
+    fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(query)
+    })
+      .then(r => {
+        if (!r.ok) throw new Error(`Trade API returned ${r.status}`);
+        return r.json();
+      })
+      .then(data => {
+        if (data.id) {
+          window.open(`${tradeBaseUrl}/${data.id}`, '_blank');
+        } else {
+          throw new Error('No search ID returned');
+        }
+      })
+      .catch(() => {
+        // Fallback: open the trade page directly
+        window.open(tradeBaseUrl, '_blank');
+      });
   }
 })();
